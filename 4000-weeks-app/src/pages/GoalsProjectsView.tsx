@@ -1,59 +1,74 @@
 import { useState } from 'react';
 import { Plus, Target } from 'lucide-react';
-import { useActiveProjects, useParkedProjects } from '../features/projects/useProjects';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../features/auth/AuthContext';
+import { useActiveProjects, useParkedProjects, canActivateProject } from '../features/projects/useProjects';
+import { CreateProjectModal } from '../features/projects/CreateProjectModal';
+import { EditProjectModal } from '../features/projects/EditProjectModal';
+import { SwapProjectModal } from '../features/projects/SwapProjectModal';
+import { VisionModal } from '../features/goals/VisionModal';
+import { CreateGoalModal } from '../features/goals/CreateGoalModal';
+import { EditGoalModal } from '../features/goals/EditGoalModal';
+import { useVision } from '../features/goals/useVision';
+import { useActiveGoals } from '../features/goals/useGoals';
 import { PROJECT_COLORS } from '../lib/types';
+import type { Project, AnnualGoal } from '../lib/types';
 
 export function GoalsProjectsView() {
-  const { user } = useAuth();
   const { data: activeProjects = [] } = useActiveProjects();
   const { data: parkedProjects = [] } = useParkedProjects();
 
-  // Fetch annual goals
-  const { data: goals = [] } = useQuery({
-    queryKey: ['goals', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
+  // Fetch user's vision
+  const { data: vision = '' } = useVision();
 
-      const { data, error } = await supabase
-        .from('annual_goals')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+  // Fetch active annual goals
+  const { data: goals = [] } = useActiveGoals();
 
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  // Fetch user profile for vision
-  const { data: profile } = useQuery({
-    queryKey: ['profile', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('settings')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const vision = profile?.settings?.vision || '';
-  const [isEditingVision, setIsEditingVision] = useState(false);
-  const [visionText, setVisionText] = useState(vision);
+  // Modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
+  const [isCreateGoalModalOpen, setIsCreateGoalModalOpen] = useState(false);
+  const [isEditGoalModalOpen, setIsEditGoalModalOpen] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
+  const [projectToActivate, setProjectToActivate] = useState<Project | null>(null);
+  const [goalToEdit, setGoalToEdit] = useState<AnnualGoal | null>(null);
 
   const activeNonLifeOps = activeProjects.filter((p) => !p.isLifeOps);
   const emptySlots = 3 - activeNonLifeOps.length;
+
+  // Modal handlers
+  const handleAddProject = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setProjectToEdit(project);
+    setIsEditModalOpen(true);
+  };
+
+  const handleActivateParkedProject = (project: Project) => {
+    if (canActivateProject(activeProjects)) {
+      // Can activate directly - not implemented yet
+      console.log('Activate directly:', project.title);
+    } else {
+      // Need to swap
+      setProjectToActivate(project);
+      setIsSwapModalOpen(true);
+    }
+  };
+
+  const handleAddGoal = () => {
+    setIsCreateGoalModalOpen(true);
+  };
+
+  const handleEditGoal = (goal: AnnualGoal) => {
+    setGoalToEdit(goal);
+    setIsEditGoalModalOpen(true);
+  };
+
+  const handleModalSuccess = () => {
+    // React Query will handle cache invalidation
+  };
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -62,7 +77,12 @@ export function GoalsProjectsView() {
         <div className="card p-6">
           <h2 className="text-h3 mb-4 flex items-center gap-2">
             <span>Your 5+ Year Vision</span>
-            <button className="btn btn-ghost text-tiny px-2 py-1">Edit</button>
+            <button
+              onClick={() => setIsVisionModalOpen(true)}
+              className="btn btn-ghost text-tiny px-2 py-1"
+            >
+              Edit
+            </button>
           </h2>
 
           {vision ? (
@@ -76,7 +96,10 @@ export function GoalsProjectsView() {
               <p className="text-warm-500 mb-4">
                 Where do you want your life to be in 5+ years?
               </p>
-              <button className="btn btn-primary">
+              <button
+                onClick={() => setIsVisionModalOpen(true)}
+                className="btn btn-primary"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your Vision
               </button>
@@ -92,7 +115,7 @@ export function GoalsProjectsView() {
             <h2 className="text-h2">2026 Goals</h2>
             <p className="text-small text-warm-600">What do you want to accomplish this year?</p>
           </div>
-          <button className="btn btn-primary">
+          <button onClick={handleAddGoal} className="btn btn-primary">
             <Plus className="w-4 h-4 mr-2" />
             Add Goal
           </button>
@@ -100,13 +123,14 @@ export function GoalsProjectsView() {
 
         {goals.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {goals.map((goal, index) => {
+            {goals.map((goal, index: number) => {
               const linkedProjects = activeProjects.filter((p) => p.goalId === goal.id);
 
               return (
-                <div
+                <button
                   key={goal.id}
-                  className="card p-6 animate-slide-up"
+                  onClick={() => handleEditGoal(goal)}
+                  className="card p-6 animate-slide-up text-left hover:shadow-md transition-shadow cursor-pointer"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="flex items-start gap-3">
@@ -145,7 +169,7 @@ export function GoalsProjectsView() {
                       )}
                     </div>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -156,7 +180,7 @@ export function GoalsProjectsView() {
             <p className="text-small text-warm-400 mb-6">
               Set clear objectives for the year to guide your project choices
             </p>
-            <button className="btn btn-primary">
+            <button onClick={handleAddGoal} className="btn btn-primary">
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Goal
             </button>
@@ -171,7 +195,11 @@ export function GoalsProjectsView() {
         <div className="grid grid-cols-4 gap-4">
           {/* Active project slots */}
           {activeNonLifeOps.map((project, index) => (
-            <div key={project.id} className="card p-6">
+            <button
+              key={project.id}
+              onClick={() => handleEditProject(project)}
+              className="card p-6 text-left hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="flex items-center gap-2 mb-3">
                 <div
                   className="w-3 h-3 rounded-full"
@@ -187,7 +215,7 @@ export function GoalsProjectsView() {
               {project.description && (
                 <p className="text-small text-warm-600 line-clamp-2">{project.description}</p>
               )}
-            </div>
+            </button>
           ))}
 
           {/* Empty slots */}
@@ -195,7 +223,7 @@ export function GoalsProjectsView() {
             <div key={`empty-${index}`} className="card p-6 border-dashed">
               <div className="text-center py-4">
                 <p className="text-tiny text-warm-400 mb-3">Slot {activeNonLifeOps.length + index + 1}</p>
-                <button className="btn btn-ghost text-small">
+                <button onClick={handleAddProject} className="btn btn-ghost text-small">
                   <Plus className="w-4 h-4 mr-1.5" />
                   Add Project
                 </button>
@@ -205,7 +233,11 @@ export function GoalsProjectsView() {
 
           {/* Life Ops (always active) */}
           {activeProjects.filter((p) => p.isLifeOps).map((project) => (
-            <div key={project.id} className="card p-6 bg-amber-50/50 border-amber-200">
+            <button
+              key={project.id}
+              onClick={() => handleEditProject(project)}
+              className="card p-6 bg-amber-50/50 border-amber-200 text-left hover:shadow-md transition-shadow cursor-pointer"
+            >
               <div className="mb-3">
                 <span className="badge bg-amber-100 text-amber-700 text-tiny">Always Active</span>
               </div>
@@ -213,7 +245,7 @@ export function GoalsProjectsView() {
               {project.description && (
                 <p className="text-small text-warm-600 line-clamp-2">{project.description}</p>
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -229,7 +261,10 @@ export function GoalsProjectsView() {
             {parkedProjects.map((project) => (
               <div key={project.id} className="card p-6 bg-warm-50">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleEditProject(project)}
+                    className="flex items-center gap-2 flex-1 text-left hover:opacity-80 transition-opacity"
+                  >
                     <div
                       className="w-3 h-3 rounded-full"
                       style={{
@@ -239,8 +274,13 @@ export function GoalsProjectsView() {
                       }}
                     />
                     <h3 className="text-h4">{project.title}</h3>
-                  </div>
-                  <button className="btn btn-secondary text-tiny px-3 py-1">Activate</button>
+                  </button>
+                  <button
+                    onClick={() => handleActivateParkedProject(project)}
+                    className="btn btn-secondary text-tiny px-3 py-1"
+                  >
+                    Activate
+                  </button>
                 </div>
                 {project.description && (
                   <p className="text-small text-warm-600">{project.description}</p>
@@ -250,6 +290,58 @@ export function GoalsProjectsView() {
           </div>
         </div>
       )}
+
+      {/* Modals */}
+      <VisionModal
+        isOpen={isVisionModalOpen}
+        onClose={() => setIsVisionModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        initialVision={vision}
+      />
+
+      <CreateGoalModal
+        isOpen={isCreateGoalModalOpen}
+        onClose={() => setIsCreateGoalModalOpen(false)}
+        onSuccess={handleModalSuccess}
+      />
+
+      <EditGoalModal
+        isOpen={isEditGoalModalOpen}
+        onClose={() => {
+          setIsEditGoalModalOpen(false);
+          setGoalToEdit(null);
+        }}
+        goal={goalToEdit}
+        onSuccess={handleModalSuccess}
+      />
+
+      <CreateProjectModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleModalSuccess}
+        activeProjectsCount={activeNonLifeOps.length}
+      />
+
+      <EditProjectModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setProjectToEdit(null);
+        }}
+        project={projectToEdit}
+        onSuccess={handleModalSuccess}
+      />
+
+      <SwapProjectModal
+        isOpen={isSwapModalOpen}
+        onClose={() => {
+          setIsSwapModalOpen(false);
+          setProjectToActivate(null);
+        }}
+        projectToActivate={projectToActivate}
+        activeProjects={activeProjects}
+        onSuccess={handleModalSuccess}
+      />
     </div>
   );
 }

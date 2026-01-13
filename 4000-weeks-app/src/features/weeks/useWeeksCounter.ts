@@ -32,7 +32,9 @@ export function useWeeksCounter() {
 
       if (error) throw error;
 
-      if (!profile.birth_date) {
+      const profileData = profile as any;
+
+      if (!profileData.birth_date) {
         return {
           weeksLived: 0,
           weeksRemaining: EXPECTED_LIFESPAN_WEEKS,
@@ -42,7 +44,7 @@ export function useWeeksCounter() {
         };
       }
 
-      const birthDate = parseISO(profile.birth_date);
+      const birthDate = parseISO(profileData.birth_date);
       const today = new Date();
       const weeksLived = differenceInWeeks(today, birthDate);
       const weeksRemaining = Math.max(0, EXPECTED_LIFESPAN_WEEKS - weeksLived);

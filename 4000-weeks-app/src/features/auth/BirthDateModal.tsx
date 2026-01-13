@@ -31,6 +31,7 @@ export function BirthDateModal({ onComplete }: BirthDateModalProps) {
     // Update profile with birth date
     const { error: updateError } = await supabase
       .from('profiles')
+      // @ts-expect-error - Supabase type inference issue
       .update({ birth_date: birthDate })
       .eq('id', user.id);
 

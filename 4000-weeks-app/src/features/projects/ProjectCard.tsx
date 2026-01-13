@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Plus, MoreVertical, Archive, Edit2 } from 'lucide-react';
-import type { Project } from '../../lib/types';
+import type { Project, Task } from '../../lib/types';
 import { PROJECT_COLORS } from '../../lib/types';
-import { useTasks, useCreateTask } from '../tasks/useTasks';
+import { useTasks } from '../tasks/useTasks';
+import { CreateTaskModal } from '../tasks/CreateTaskModal';
+import { EditTaskModal } from '../tasks/EditTaskModal';
 
 interface ProjectCardProps {
   project: Project;
@@ -12,26 +14,15 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, onEdit, onPark }: ProjectCardProps) {
   const [showMenu, setShowMenu] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
 
   const { data: tasks = [] } = useTasks(project.id);
-  const createTask = useCreateTask();
 
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim()) return;
-
-    await createTask.mutateAsync({
-      projectId: project.id,
-      title: newTaskTitle,
-      estimatedMinutes: null,
-      status: 'pending',
-      scheduledDate: null,
-    });
-
-    setNewTaskTitle('');
-    setShowAddTask(false);
+  const handleEditTask = (task: Task) => {
+    setTaskToEdit(task);
+    setIsEditTaskOpen(true);
   };
 
   const pendingTasks = tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress');
@@ -108,16 +99,21 @@ export function ProjectCard({ project, onEdit, onPark }: ProjectCardProps) {
         {pendingTasks.length} {pendingTasks.length === 1 ? 'task' : 'tasks'}
       </div>
 
-      {/* Tasks list (simplified for now) */}
+      {/* Tasks list */}
       {pendingTasks.length > 0 && (
         <div className="space-y-1 mb-3">
           {pendingTasks.slice(0, 3).map((task) => (
-            <div
+            <button
               key={task.id}
-              className="text-small text-warm-700 truncate py-1 px-2 hover:bg-warm-50 rounded cursor-pointer transition-colors"
+              onClick={() => handleEditTask(task)}
+              className="w-full text-left text-small text-warm-700 truncate py-1 px-2 hover:bg-warm-50 rounded cursor-pointer transition-colors flex items-start gap-2"
             >
-              • {task.title}
-            </div>
+              <span className="text-warm-400">•</span>
+              <span className="flex-1 truncate">{task.title}</span>
+              {task.estimatedMinutes && (
+                <span className="text-tiny text-warm-500">{task.estimatedMinutes}m</span>
+              )}
+            </button>
           ))}
           {pendingTasks.length > 3 && (
             <div className="text-tiny text-warm-500 px-2 pt-1">
@@ -127,30 +123,32 @@ export function ProjectCard({ project, onEdit, onPark }: ProjectCardProps) {
         </div>
       )}
 
-      {/* Add task */}
-      {showAddTask ? (
-        <form onSubmit={handleAddTask} className="mt-2">
-          <input
-            type="text"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="Task name..."
-            className="input text-small py-1.5"
-            autoFocus
-            onBlur={() => {
-              if (!newTaskTitle.trim()) setShowAddTask(false);
-            }}
-          />
-        </form>
-      ) : (
-        <button
-          onClick={() => setShowAddTask(true)}
-          className="w-full btn btn-ghost text-small py-1.5 flex items-center justify-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Add Task
-        </button>
-      )}
+      {/* Add task button */}
+      <button
+        onClick={() => setIsCreateTaskOpen(true)}
+        className="w-full btn btn-ghost text-small py-1.5 flex items-center justify-center gap-1.5"
+      >
+        <Plus className="w-4 h-4" />
+        Add Task
+      </button>
+
+      {/* Task Modals */}
+      <CreateTaskModal
+        isOpen={isCreateTaskOpen}
+        onClose={() => setIsCreateTaskOpen(false)}
+        defaultProjectId={project.id}
+        onSuccess={() => {}}
+      />
+
+      <EditTaskModal
+        isOpen={isEditTaskOpen}
+        onClose={() => {
+          setIsEditTaskOpen(false);
+          setTaskToEdit(null);
+        }}
+        task={taskToEdit}
+        onSuccess={() => {}}
+      />
     </div>
   );
 }

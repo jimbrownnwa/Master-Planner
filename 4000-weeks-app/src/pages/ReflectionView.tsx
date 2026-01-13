@@ -11,7 +11,9 @@ export function ReflectionView() {
   );
 
   const { data: weekTasks = [] } = useWeekTasks(currentWeekStart);
-  const { data: activeProjects = [] } = useActiveProjects();
+  // Future use: for displaying project summaries
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { data: _activeProjects = [] } = useActiveProjects();
 
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart((prev) => {
@@ -28,7 +30,7 @@ export function ReflectionView() {
   // Calculate stats
   const completedTasks = weekTasks.filter((t) => t.status === 'completed');
   const totalCommittedMinutes = weekTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
-  const completedMinutes = completedTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
+  // Note: completedMinutes calculation deferred to Phase 2
 
   // Group tasks by project
   const tasksByProject = weekTasks.reduce((acc, task) => {

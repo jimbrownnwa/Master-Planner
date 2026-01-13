@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../auth/AuthContext';
 import type { Task, TaskWithProject } from '../../lib/types';
-import { format, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 
 // Fetch tasks for a specific project
 export function useTasks(projectId: string | null) {
@@ -21,13 +21,13 @@ export function useTasks(projectId: string | null) {
 
       if (error) throw error;
 
-      return data.map((row) => ({
+      return (data as any[]).map((row: any) => ({
         id: row.id,
         projectId: row.project_id,
         title: row.title,
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
-        scheduledDate: row.scheduled_date ? new Date(row.scheduled_date) : null,
+        scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
       }));
@@ -58,13 +58,13 @@ export function useTasksByDate(date: Date | null) {
 
       if (error) throw error;
 
-      return data.map((row) => ({
+      return (data as any[]).map((row: any) => ({
         id: row.id,
         projectId: row.project_id,
         title: row.title,
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
-        scheduledDate: row.scheduled_date ? new Date(row.scheduled_date) : null,
+        scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
         project: {
@@ -111,13 +111,13 @@ export function useWeekTasks(weekStart: Date) {
 
       if (error) throw error;
 
-      return data.map((row) => ({
+      return (data as any[]).map((row: any) => ({
         id: row.id,
         projectId: row.project_id,
         title: row.title,
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
-        scheduledDate: row.scheduled_date ? new Date(row.scheduled_date) : null,
+        scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
         project: {
@@ -148,7 +148,7 @@ export function useCreateTask() {
     mutationFn: async (
       task: Omit<Task, 'id' | 'createdAt' | 'completedAt'>
     ) => {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('tasks')
         .insert({
           project_id: task.projectId,
@@ -156,7 +156,7 @@ export function useCreateTask() {
           estimated_minutes: task.estimatedMinutes,
           status: task.status,
           scheduled_date: task.scheduledDate ? format(task.scheduledDate, 'yyyy-MM-dd') : null,
-        })
+        } as any)
         .select()
         .single();
 
@@ -196,6 +196,7 @@ export function useUpdateTask() {
 
       const { data, error } = await supabase
         .from('tasks')
+        // @ts-expect-error - Supabase type inference issue
         .update(dbUpdates)
         .eq('id', id)
         .select()

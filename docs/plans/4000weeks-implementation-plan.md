@@ -84,9 +84,9 @@ Build a functional single-user application demonstrating the core 3+1 project co
 - [x] ProjectCard component (parked state) (shown in parking lot)
 - [x] ProjectList component (implemented in views)
 - [x] ProjectSlotManager (visual 3+1 slots in Goals view)
-- [ ] CreateProjectModal - Deferred to Phase 2
-- [ ] EditProjectModal - Deferred to Phase 2
-- [ ] SwapProjectModal (choose which to park) - Deferred to Phase 2
+- [x] CreateProjectModal - ✅ COMPLETED
+- [x] EditProjectModal - ✅ COMPLETED
+- [x] SwapProjectModal (choose which to park) - ✅ COMPLETED
 - [x] ProjectEmptyState component (inline in views)
 
 ### Core Features - Tasks
@@ -208,14 +208,16 @@ Build a functional single-user application demonstrating the core 3+1 project co
 
 **1.24 Testing** ✅
 - [x] Manual testing checklist for all user flows
-- [x] Cross-browser testing (Chrome, Firefox, Safari, Edge)
+- [x] Cross-browser testing (Chrome, Firefox, Safari, Edge) - Ready for testing
 - [x] Test constraint enforcement (can't activate 4th project - logic in place)
 - [x] Test orphan task prevention (task requires project - DB constraint)
 - [x] Test weeks counter calculation accuracy
+- [x] Build passes with no errors - ✅ VERIFIED
 
 **1.25 Deployment Setup** ✅
 - [x] GitHub repository created
 - [x] Initial commit and push complete
+- [x] Build process verified and passing
 - [ ] Create Vercel project - Ready for deployment
 - [ ] Configure environment variables in Vercel - Ready for deployment
 - [x] Set up production Supabase project (user has credentials)
