@@ -4,7 +4,7 @@ import { useUpdateTask, useDeleteTask } from './useTasks';
 import { useActiveProjects } from '../projects/useProjects';
 import { PROJECT_COLORS } from '../../lib/types';
 import type { Task, ProjectColorName } from '../../lib/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addMinutes } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 
 interface EditTaskModalProps {
@@ -25,6 +25,7 @@ export function EditTaskModal({
   const [estimatedMinutes, setEstimatedMinutes] = useState('');
   const [status, setStatus] = useState<'pending' | 'in_progress' | 'completed' | 'skipped'>('pending');
   const [scheduledDate, setScheduledDate] = useState('');
+  const [startTime, setStartTime] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: projects = [] } = useActiveProjects();
@@ -39,6 +40,7 @@ export function EditTaskModal({
       setEstimatedMinutes(task.estimatedMinutes ? String(task.estimatedMinutes) : '');
       setStatus(task.status);
       setScheduledDate(task.scheduledDate ? format(task.scheduledDate, 'yyyy-MM-dd') : '');
+      setStartTime(task.scheduledStart ? format(task.scheduledStart, 'HH:mm') : '');
     }
   }, [task]);
 
@@ -47,6 +49,17 @@ export function EditTaskModal({
     if (!task || !title.trim()) return;
 
     try {
+      let scheduledStart = null;
+      let scheduledEnd = null;
+
+      // If both date and time are provided, create timestamptz values
+      if (scheduledDate && startTime) {
+        scheduledStart = parseISO(`${scheduledDate}T${startTime}:00`);
+        if (estimatedMinutes) {
+          scheduledEnd = addMinutes(scheduledStart, parseInt(estimatedMinutes));
+        }
+      }
+
       await updateTask.mutateAsync({
         id: task.id,
         updates: {
@@ -54,6 +67,8 @@ export function EditTaskModal({
           estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
           status,
           scheduledDate: scheduledDate ? parseISO(scheduledDate + 'T12:00:00') : null,
+          scheduledStart,
+          scheduledEnd,
         },
       });
 
@@ -169,6 +184,33 @@ export function EditTaskModal({
                 className="text-tiny text-warm-500 hover:text-warm-700 mt-1"
               >
                 Clear date
+              </button>
+            )}
+          </div>
+
+          {/* Start Time (optional) */}
+          <div>
+            <label htmlFor="startTime" className="block text-small font-medium text-warm-700 mb-2">
+              Start Time (optional)
+            </label>
+            <input
+              id="startTime"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="input"
+              disabled={!scheduledDate}
+            />
+            <p className="text-tiny text-warm-500 mt-1">
+              Leave empty to schedule without specific time
+            </p>
+            {startTime && (
+              <button
+                type="button"
+                onClick={() => setStartTime('')}
+                className="text-tiny text-warm-500 hover:text-warm-700 mt-1"
+              >
+                Clear time
               </button>
             )}
           </div>

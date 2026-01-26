@@ -46,10 +46,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
       {/* Modal */}
       <div
-        className={`relative w-full ${sizeClasses[size]} card p-6 animate-slide-up`}
+        className={`relative w-full ${sizeClasses[size]} card p-6 animate-slide-up max-h-[90vh] flex flex-col`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-shrink-0">
           <h3 className="text-h3">{title}</h3>
           <button
             onClick={onClose}
@@ -61,7 +61,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         </div>
 
         {/* Content */}
-        <div>{children}</div>
+        <div className="overflow-y-auto flex-1 -mr-2 pr-2">{children}</div>
       </div>
     </div>
   );

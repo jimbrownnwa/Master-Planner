@@ -109,6 +109,8 @@ export type Database = {
           estimated_minutes: number | null;
           status: 'pending' | 'in_progress' | 'completed' | 'skipped';
           scheduled_date: string | null;
+          scheduled_start: string | null;
+          scheduled_end: string | null;
           completed_at: string | null;
           created_at: string;
         };
@@ -119,6 +121,8 @@ export type Database = {
           estimated_minutes?: number | null;
           status?: 'pending' | 'in_progress' | 'completed' | 'skipped';
           scheduled_date?: string | null;
+          scheduled_start?: string | null;
+          scheduled_end?: string | null;
           completed_at?: string | null;
           created_at?: string;
         };
@@ -129,6 +133,8 @@ export type Database = {
           estimated_minutes?: number | null;
           status?: 'pending' | 'in_progress' | 'completed' | 'skipped';
           scheduled_date?: string | null;
+          scheduled_start?: string | null;
+          scheduled_end?: string | null;
           completed_at?: string | null;
           created_at?: string;
         };
@@ -211,6 +217,8 @@ export interface Task {
   estimatedMinutes: number | null;
   status: 'pending' | 'in_progress' | 'completed' | 'skipped';
   scheduledDate: Date | null;
+  scheduledStart: Date | null;
+  scheduledEnd: Date | null;
   completedAt: Date | null;
   createdAt: Date;
 }

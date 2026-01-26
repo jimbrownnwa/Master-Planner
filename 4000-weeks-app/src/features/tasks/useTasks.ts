@@ -28,6 +28,8 @@ export function useTasks(projectId: string | null) {
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
         scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
+        scheduledStart: row.scheduled_start ? new Date(row.scheduled_start) : null,
+        scheduledEnd: row.scheduled_end ? new Date(row.scheduled_end) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
       }));
@@ -65,6 +67,8 @@ export function useTasksByDate(date: Date | null) {
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
         scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
+        scheduledStart: row.scheduled_start ? new Date(row.scheduled_start) : null,
+        scheduledEnd: row.scheduled_end ? new Date(row.scheduled_end) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
         project: {
@@ -118,6 +122,8 @@ export function useWeekTasks(weekStart: Date) {
         estimatedMinutes: row.estimated_minutes,
         status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
         scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
+        scheduledStart: row.scheduled_start ? new Date(row.scheduled_start) : null,
+        scheduledEnd: row.scheduled_end ? new Date(row.scheduled_end) : null,
         completedAt: row.completed_at ? new Date(row.completed_at) : null,
         createdAt: new Date(row.created_at),
         project: {
@@ -156,6 +162,8 @@ export function useCreateTask() {
           estimated_minutes: task.estimatedMinutes,
           status: task.status,
           scheduled_date: task.scheduledDate ? format(task.scheduledDate, 'yyyy-MM-dd') : null,
+          scheduled_start: task.scheduledStart?.toISOString() || null,
+          scheduled_end: task.scheduledEnd?.toISOString() || null,
         } as any)
         .select()
         .single();
@@ -191,6 +199,10 @@ export function useUpdateTask() {
         dbUpdates.scheduled_date = updates.scheduledDate
           ? format(updates.scheduledDate, 'yyyy-MM-dd')
           : null;
+      if (updates.scheduledStart !== undefined)
+        dbUpdates.scheduled_start = updates.scheduledStart?.toISOString() || null;
+      if (updates.scheduledEnd !== undefined)
+        dbUpdates.scheduled_end = updates.scheduledEnd?.toISOString() || null;
       if (updates.completedAt !== undefined)
         dbUpdates.completed_at = updates.completedAt?.toISOString();
 
@@ -241,5 +253,61 @@ export function useDeleteTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
+  });
+}
+
+// Fetch tasks scheduled for a date but without specific times (unscheduled tasks)
+export function useUnscheduledTasksForDate(date: Date | null) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['tasks', 'unscheduled', date?.toISOString()],
+    queryFn: async (): Promise<TaskWithProject[]> => {
+      if (!date || !user) return [];
+
+      const dateStr = format(date, 'yyyy-MM-dd');
+
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          *,
+          project:projects(*)
+        `)
+        .eq('scheduled_date', dateStr)
+        .is('scheduled_start', null)
+        .neq('status', 'completed')
+        .neq('status', 'skipped')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return (data as any[]).map((row: any) => ({
+        id: row.id,
+        projectId: row.project_id,
+        title: row.title,
+        estimatedMinutes: row.estimated_minutes,
+        status: row.status as 'pending' | 'in_progress' | 'completed' | 'skipped',
+        scheduledDate: row.scheduled_date ? parseISO(row.scheduled_date) : null,
+        scheduledStart: row.scheduled_start ? new Date(row.scheduled_start) : null,
+        scheduledEnd: row.scheduled_end ? new Date(row.scheduled_end) : null,
+        completedAt: row.completed_at ? new Date(row.completed_at) : null,
+        createdAt: new Date(row.created_at),
+        project: {
+          id: row.project.id,
+          userId: row.project.user_id,
+          goalId: row.project.goal_id,
+          title: row.project.title,
+          description: row.project.description || '',
+          status: row.project.status,
+          isLifeOps: row.project.is_life_ops,
+          position: row.project.position,
+          color: row.project.color,
+          createdAt: new Date(row.project.created_at),
+          archivedAt: row.project.archived_at ? new Date(row.project.archived_at) : null,
+          completionNotes: row.project.completion_notes,
+        },
+      }));
+    },
+    enabled: !!user && !!date,
   });
 }

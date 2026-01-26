@@ -49,6 +49,8 @@ create table public.tasks (
   estimated_minutes integer,
   status text check (status in ('pending', 'in_progress', 'completed', 'skipped')) default 'pending',
   scheduled_date date,
+  scheduled_start timestamptz,
+  scheduled_end timestamptz,
   completed_at timestamptz,
   created_at timestamptz default now() not null
 );
@@ -74,6 +76,7 @@ create index projects_user_id_idx on public.projects(user_id);
 create index projects_status_idx on public.projects(status);
 create index tasks_project_id_idx on public.tasks(project_id);
 create index tasks_scheduled_date_idx on public.tasks(scheduled_date);
+create index tasks_scheduled_start_idx on public.tasks(scheduled_start);
 create index reflections_user_id_idx on public.reflections(user_id);
 create index reflections_week_start_idx on public.reflections(week_start);
 

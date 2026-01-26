@@ -4,7 +4,7 @@ import { useCreateTask } from './useTasks';
 import { useActiveProjects } from '../projects/useProjects';
 import { PROJECT_COLORS } from '../../lib/types';
 import type { ProjectColorName } from '../../lib/types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addMinutes } from 'date-fns';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ export function CreateTaskModal({
   const [scheduledDate, setScheduledDate] = useState(
     defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   );
+  const [startTime, setStartTime] = useState('');
 
   const { data: projects = [] } = useActiveProjects();
   const createTask = useCreateTask();
@@ -43,12 +44,25 @@ export function CreateTaskModal({
     if (!title.trim() || !projectId) return;
 
     try {
+      let scheduledStart = null;
+      let scheduledEnd = null;
+
+      // If both date and time are provided, create timestamptz values
+      if (scheduledDate && startTime) {
+        scheduledStart = parseISO(`${scheduledDate}T${startTime}:00`);
+        if (estimatedMinutes) {
+          scheduledEnd = addMinutes(scheduledStart, parseInt(estimatedMinutes));
+        }
+      }
+
       await createTask.mutateAsync({
         projectId,
         title: title.trim(),
         estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
         status,
         scheduledDate: scheduledDate ? parseISO(scheduledDate + 'T12:00:00') : null,
+        scheduledStart,
+        scheduledEnd,
       });
 
       // Reset form
@@ -57,6 +71,7 @@ export function CreateTaskModal({
       setEstimatedMinutes('');
       setStatus('pending');
       setScheduledDate(defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+      setStartTime('');
 
       onSuccess?.();
       onClose();
@@ -71,6 +86,7 @@ export function CreateTaskModal({
     setEstimatedMinutes('');
     setStatus('pending');
     setScheduledDate(defaultDate ? format(defaultDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    setStartTime('');
     onClose();
   };
 
@@ -176,6 +192,24 @@ export function CreateTaskModal({
               Clear date
             </button>
           )}
+        </div>
+
+        {/* Start Time (optional) */}
+        <div>
+          <label htmlFor="startTime" className="block text-small font-medium text-warm-700 mb-2">
+            Start Time (optional)
+          </label>
+          <input
+            id="startTime"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="input"
+            disabled={!scheduledDate}
+          />
+          <p className="text-tiny text-warm-500 mt-1">
+            Leave empty to schedule without specific time
+          </p>
         </div>
 
         {/* Status */}

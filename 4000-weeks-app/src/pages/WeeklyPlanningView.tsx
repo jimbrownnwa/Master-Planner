@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { format, addWeeks, subWeeks, startOfWeek, addDays, isToday, isSameDay } from 'date-fns';
-import { ChevronLeft, ChevronRight, Plus, Circle, CheckCircle2, PlayCircle } from 'lucide-react';
+import { format, addWeeks, subWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useActiveProjects, useParkedProjects, canActivateProject } from '../features/projects/useProjects';
 import { ProjectCard } from '../features/projects/ProjectCard';
 import { CreateProjectModal } from '../features/projects/CreateProjectModal';
@@ -8,6 +8,7 @@ import { EditProjectModal } from '../features/projects/EditProjectModal';
 import { SwapProjectModal } from '../features/projects/SwapProjectModal';
 import { CreateTaskModal } from '../features/tasks/CreateTaskModal';
 import { EditTaskModal } from '../features/tasks/EditTaskModal';
+import { DayCalendarView } from '../features/tasks/DayCalendarView';
 import { useTasksByDate, useWeekTasks, useUpdateTask } from '../features/tasks/useTasks';
 import { PROJECT_COLORS } from '../lib/types';
 import type { Project, TaskWithProject } from '../lib/types';
@@ -105,32 +106,21 @@ export function WeeklyPlanningView() {
   console.log('Today tasks loading:', todayTasksLoading);
   console.log('Today tasks error:', todayTasksError);
 
-  // Filter today's tasks to only show active ones (exclude skipped and completed)
+  // Separate tasks with and without time slots
   const activeTodayTasks = todayTasks.filter(
     (t) => t.status !== 'skipped' && t.status !== 'completed'
   );
+  const todayTasksWithTime = activeTodayTasks.filter((t) => t.scheduledStart);
+  const todayTasksWithoutTime = activeTodayTasks.filter((t) => !t.scheduledStart);
 
   console.log('Active today tasks after filter:', activeTodayTasks);
-  console.log('Active today tasks count:', activeTodayTasks.length);
+  console.log('Tasks with time:', todayTasksWithTime.length);
+  console.log('Tasks without time:', todayTasksWithoutTime.length);
 
   // Calculate today's committed hours
   const todayMinutes = activeTodayTasks
     .reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0);
   const todayHours = (todayMinutes / 60).toFixed(1);
-
-  // Group today's tasks by project
-  const tasksByProject = activeTodayTasks.reduce((acc, task) => {
-    if (!acc[task.project.id]) {
-      acc[task.project.id] = {
-        project: task.project,
-        tasks: [],
-        totalMinutes: 0,
-      };
-    }
-    acc[task.project.id].tasks.push(task);
-    acc[task.project.id].totalMinutes += task.estimatedMinutes || 0;
-    return acc;
-  }, {} as Record<string, { project: any; tasks: any[]; totalMinutes: number }>);
 
   return (
     <div className="h-[calc(100vh-73px)] flex">
@@ -321,9 +311,9 @@ export function WeeklyPlanningView() {
           <p className="text-tiny text-warm-500">{format(today, 'EEEE, MMM d')}</p>
         </div>
 
-        {/* Hours committed */}
+        {/* Hours summary card */}
         <div className="card p-4 mb-6 bg-gradient-to-br from-amber-50 to-sienna-50">
-          <p className="text-tiny text-warm-600 mb-1">Hours planned or in progress</p>
+          <p className="text-tiny text-warm-600 mb-1">Hours scheduled</p>
           <p className="text-h2 text-gradient-amber">{todayHours} hours</p>
           <p className="text-tiny text-warm-600 mt-1">
             {activeTodayTasks.filter(t => t.status === 'in_progress').length > 0 && (
@@ -334,92 +324,14 @@ export function WeeklyPlanningView() {
           </p>
         </div>
 
-        {/* Tasks by project */}
-        {Object.values(tasksByProject).length > 0 ? (
-          <div className="space-y-4">
-            {Object.values(tasksByProject).map(({ project, tasks, totalMinutes }) => (
-              <div key={project.id}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{
-                      backgroundColor:
-                        PROJECT_COLORS[project.color as keyof typeof PROJECT_COLORS]?.DEFAULT ||
-                        PROJECT_COLORS.sage.DEFAULT,
-                    }}
-                  />
-                  <span className="text-small font-medium text-warm-700">{project.title}</span>
-                  <span className="text-tiny text-warm-500 ml-auto">
-                    {(totalMinutes / 60).toFixed(1)}h
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="group relative flex items-start gap-2 p-2.5 bg-warm-50 rounded-button hover:bg-warm-100 transition-colors"
-                    >
-                      {/* Status indicator */}
-                      <button
-                        onClick={() => {
-                          if (task.status === 'pending') {
-                            handleTaskStatusChange(task.id, 'in_progress');
-                          } else if (task.status === 'in_progress') {
-                            handleTaskStatusChange(task.id, 'completed');
-                          } else {
-                            handleTaskStatusChange(task.id, 'pending');
-                          }
-                        }}
-                        className="flex-shrink-0 mt-0.5"
-                      >
-                        {task.status === 'pending' && (
-                          <Circle className="w-4 h-4 text-warm-400 hover:text-amber-500 transition-colors" />
-                        )}
-                        {task.status === 'in_progress' && (
-                          <PlayCircle className="w-4 h-4 text-amber-500 hover:text-green-500 transition-colors fill-amber-100" />
-                        )}
-                        {task.status === 'completed' && (
-                          <CheckCircle2 className="w-4 h-4 text-green-600" />
-                        )}
-                      </button>
-
-                      {/* Task details */}
-                      <button
-                        onClick={() => handleEditTask(task)}
-                        className="flex-1 text-left"
-                      >
-                        <div className="flex items-start justify-between">
-                          <span className={`text-small ${
-                            task.status === 'completed'
-                              ? 'text-warm-500 line-through'
-                              : task.status === 'in_progress'
-                              ? 'text-warm-800 font-medium'
-                              : 'text-warm-700'
-                          }`}>
-                            {task.title}
-                          </span>
-                          {task.estimatedMinutes && (
-                            <span className="text-tiny text-warm-500 ml-2">
-                              {task.estimatedMinutes}m
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-small text-warm-500 italic">No tasks scheduled for today</p>
-            <p className="text-tiny text-warm-400 mt-2">
-              Add tasks to your projects and schedule them to see them here
-            </p>
-          </div>
-        )}
+        {/* Day calendar view */}
+        <DayCalendarView
+          date={today}
+          scheduledTasks={todayTasksWithTime}
+          unscheduledTasks={todayTasksWithoutTime}
+          onTaskClick={handleEditTask}
+          onTaskStatusChange={handleTaskStatusChange}
+        />
       </div>
 
       {/* Modals */}
